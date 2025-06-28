@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.csc325_firebase_webview_auth.view.SplashScreenController"
+            prefHeight="300.0" prefWidth="600.0">
+    <children>
+        <ImageView fitHeight="150.0" fitWidth="150.0" layoutX="225.0" layoutY="50.0" pickOnBounds="true" preserveRatio="true">
+            <image>
+                <Image url="@logo.png" />
+            </image>
+        </ImageView>
+        <Label layoutX="200.0" layoutY="220.0" text="Loading...">
+            <font>
+                <Font size="20"/>
+            </font>
+        </Label>
+    </children>
+</AnchorPane>

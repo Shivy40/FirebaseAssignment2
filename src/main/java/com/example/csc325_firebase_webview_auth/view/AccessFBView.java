@@ -1,4 +1,4 @@
-package com.example.csc325_firebase_webview_auth.view;//package modelview;
+package com.example.csc325_firebase_webview_auth.view;
 
 import com.example.csc325_firebase_webview_auth.model.Person;
 import com.example.csc325_firebase_webview_auth.viewmodel.AccessDataViewModel;
@@ -6,49 +6,43 @@ import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
-import com.google.cloud.firestore.WriteResult;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
+import com.google.firebase.cloud.StorageClient;
+import com.google.cloud.storage.Blob;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
+import javafx.stage.FileChooser;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.*;
 
 public class AccessFBView {
 
+    @FXML private TextField nameField;
+    @FXML private TextField majorField;
+    @FXML private TextField ageField;
+    @FXML private TextField emailField;
+    @FXML private PasswordField passwordField;
+    @FXML private TextArea outputField;
+    @FXML private Button writeButton;
+    @FXML private Button readButton;
 
-     @FXML
-    private TextField nameField;
-    @FXML
-    private TextField majorField;
-    @FXML
-    private TextField ageField;
-    @FXML
-    private Button writeButton;
-    @FXML
-    private Button readButton;
-    @FXML
-    private TextArea outputField;
-     private boolean key;
+    private boolean key;
     private ObservableList<Person> listOfUsers = FXCollections.observableArrayList();
     private Person person;
+
     public ObservableList<Person> getListOfUsers() {
-        return listOfUsers;
+        return this.listOfUsers;
     }
 
-    void initialize() {
-
+    public void initialize() {
         AccessDataViewModel accessDataViewModel = new AccessDataViewModel();
         nameField.textProperty().bindBidirectional(accessDataViewModel.userNameProperty());
         majorField.textProperty().bindBidirectional(accessDataViewModel.userMajorProperty());
@@ -57,104 +51,104 @@ public class AccessFBView {
 
     @FXML
     private void addRecord(ActionEvent event) {
-        addData();
+        this.addData();
     }
 
-        @FXML
+    @FXML
     private void readRecord(ActionEvent event) {
-        readFirebase();
+        this.readFirebase();
     }
 
-            @FXML
-    private void regRecord(ActionEvent event) {
-        registerUser();
-    }
-
-     @FXML
+    @FXML
     private void switchToSecondary() throws IOException {
         App.setRoot("/files/WebContainer.fxml");
     }
 
     public void addData() {
-
-        DocumentReference docRef = App.fstore.collection("References").document(UUID.randomUUID().toString());
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("Name", nameField.getText());
-        data.put("Major", majorField.getText());
-        data.put("Age", Integer.parseInt(ageField.getText()));
-        //asynchronously write data
-        ApiFuture<WriteResult> result = docRef.set(data);
+        try {
+            DocumentReference docRef = App.fstore.collection("References").document(UUID.randomUUID().toString());
+            Map<String, Object> data = new HashMap<>();
+            data.put("Name", nameField.getText());
+            data.put("Major", majorField.getText());
+            data.put("Age", Integer.parseInt(ageField.getText()));
+            docRef.set(data);
+            outputField.setText("✅ Data added.");
+        } catch (Exception e) {
+            outputField.setText("❌ Error: " + e.getMessage());
+        }
     }
 
-        public boolean readFirebase()
-         {
-             key = false;
+    public boolean readFirebase() {
+        this.key = false;
+        ApiFuture<QuerySnapshot> future = App.fstore.collection("References").get();
 
-        //asynchronously retrieve all documents
-        ApiFuture<QuerySnapshot> future =  App.fstore.collection("References").get();
-        // future.get() blocks on response
-        List<QueryDocumentSnapshot> documents;
-        try
-        {
-            documents = future.get().getDocuments();
-            if(documents.size()>0)
-            {
-                System.out.println("Outing....");
-                for (QueryDocumentSnapshot document : documents)
-                {
-                    outputField.setText(outputField.getText()+ document.getData().get("Name")+ " , Major: "+
-                            document.getData().get("Major")+ " , Age: "+
-                            document.getData().get("Age")+ " \n ");
-                    System.out.println(document.getId() + " => " + document.getData().get("Name"));
-                    person  = new Person(String.valueOf(document.getData().get("Name")),
-                            document.getData().get("Major").toString(),
-                            Integer.parseInt(document.getData().get("Age").toString()));
+        try {
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+            if (documents.size() > 0) {
+                outputField.setText("📋 Records:\n");
+
+                for (QueryDocumentSnapshot doc : documents) {
+                    String entry = doc.get("Name") + ", Major: " + doc.get("Major") + ", Age: " + doc.get("Age") + "\n";
+                    outputField.appendText(entry);
+                    person = new Person(doc.get("Name").toString(), doc.get("Major").toString(), Integer.parseInt(doc.get("Age").toString()));
                     listOfUsers.add(person);
                 }
+            } else {
+                outputField.setText("No data found.");
             }
-            else
-            {
-               System.out.println("No data");
-            }
-            key=true;
+            key = true;
+        } catch (Exception e) {
+            outputField.setText("❌ Failed to read: " + e.getMessage());
+        }
 
-        }
-        catch (InterruptedException | ExecutionException ex)
-        {
-             ex.printStackTrace();
-        }
         return key;
     }
 
-        public void sendVerificationEmail() {
+    @FXML
+    public void registerUserFromInput() {
         try {
-            UserRecord user = App.fauth.getUser("name");
-            //String url = user.getPassword();
+            String email = emailField.getText();
+            String password = passwordField.getText();
 
-        } catch (Exception e) {
+            UserRecord.CreateRequest request = new UserRecord.CreateRequest()
+                    .setEmail(email)
+                    .setPassword(password);
+
+            UserRecord userRecord = App.fauth.createUser(request);
+            outputField.setText("✅ Registered: " + userRecord.getEmail());
+
+        } catch (FirebaseAuthException e) {
+            outputField.setText("❌ Registration failed: " + e.getMessage());
         }
     }
 
-    public boolean registerUser() {
-        UserRecord.CreateRequest request = new UserRecord.CreateRequest()
-                .setEmail("user@example.com")
-                .setEmailVerified(false)
-                .setPassword("secretPassword")
-                .setPhoneNumber("+11234567890")
-                .setDisplayName("John Doe")
-                .setDisabled(false);
+    @FXML
+    public void loginUser() {
+        outputField.setText("⚠️ Login not supported by Admin SDK. Use WebView or REST for real auth.");
+    }
 
-        UserRecord userRecord;
+    @FXML
+    public void uploadProfilePicture() {
         try {
-            userRecord = App.fauth.createUser(request);
-            System.out.println("Successfully created new user: " + userRecord.getUid());
-            return true;
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Choose Profile Picture");
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg")
+            );
 
-        } catch (FirebaseAuthException ex) {
-           // Logger.getLogger(FirestoreContext.class.getName()).log(Level.SEVERE, null, ex);
-            return false;
+            File file = fileChooser.showOpenDialog(null);
+            if (file != null) {
+                String fileName = "profile_pictures/" + file.getName();
+                FileInputStream stream = new FileInputStream(file);
+
+                Blob blob = StorageClient.getInstance().bucket().create(fileName, stream, "image/jpeg");
+
+                outputField.setText("✅ Uploaded: " + blob.getName() + "\nURL: " + blob.getMediaLink());
+            } else {
+                outputField.setText("⚠️ Upload canceled.");
+            }
+        } catch (Exception e) {
+            outputField.setText("❌ Upload failed: " + e.getMessage());
         }
-
     }
 }
